@@ -1,0 +1,33 @@
+---
+name: Release
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    uses: thibaultserti/gh-actions-reusable-workflows/.github/workflows/run-go-quality.yaml@main
+    secrets: inherit
+    permissions:
+      security-events: write
+  docker-build:
+    uses: thibaultserti/gh-actions-reusable-workflows/.github/workflows/run-docker-build.yaml@main
+    needs: quality
+  go-release:
+    uses: thibaultserti/gh-actions-reusable-workflows/.github/workflows/push-go-release.yaml@main
+    needs: docker-build
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+  docker-release:
+    uses: thibaultserti/gh-actions-reusable-workflows/.github/workflows/push-docker-release.yaml@main
+    needs: go-release
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      packages: write
+    with:
+      release: ${{ needs.go-release.outputs.new_release_version}}
+      use-prebuilt-image: true
+      enable-signing: true
