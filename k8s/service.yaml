@@ -1,0 +1,10 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: image-validating-webhook
+spec:
+  selector:
+    app: image-validating-webhook
+  ports:
+    - port: 443
+      targetPort: 443

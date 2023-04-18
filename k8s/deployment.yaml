@@ -1,0 +1,29 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: image-validating-webhoo
+  namespace: kube-image-admission-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-validating-webhook
+  template:
+    metadata:
+      labels:
+        app: image-validating-webhook
+    spec:
+      containers:
+        - name: image-validating-webhook
+          image: ghcr.io/thibaultserti/k8s-image-admission-controller:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - name: cert
+              mountPath: /etc/opt
+              readOnly: true
+      volumes:
+        - name: cert
+          secret:
+            secretName: server-cert

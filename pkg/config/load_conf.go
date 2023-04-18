@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/viper"
 
 	logging "github.com/sirupsen/logrus"
+
+	"k8s-image-admission-controller/pkg/k8simageadmissioncontroller"
 )
 
 // I'm declaring as vars so I can test easier, I recommend declaring these as constants
@@ -33,6 +35,10 @@ func NewRootCommand() *cobra.Command {
 
 	hostname := ""
 	port := 0
+	certFile := ""
+	keyFile := ""
+
+	compressedImageSizeLimit := int64(0)
 
 	// Define our command
 	rootCmd := &cobra.Command{
@@ -52,22 +58,33 @@ func NewRootCommand() *cobra.Command {
 			} else {
 				// The TextFormatter is default, you don't actually have to do this.
 				logging.SetFormatter(&logging.TextFormatter{})
+				logging.Warn("Server in development mode, do not run in production!")
 			}
 			// Print the final resolved value from binding cobra flags and viper config
 			logging.WithFields(logging.Fields{
-				"environment": environment,
-				"config":      defaultConfigFilename,
-				"hostname":    hostname,
-				"port":        port,
+				"environment":              environment,
+				"config":                   defaultConfigFilename,
+				"hostname":                 hostname,
+				"port":                     port,
+				"certFile":                 certFile,
+				"keyFile":                  keyFile,
+				"compressedImageSizeLimit": compressedImageSizeLimit,
 			}).Info("Variables loaded from env, configuration files and cli args")
+
+			k8simageadmissioncontroller.RunWebhookServer(hostname, port, certFile, keyFile, compressedImageSizeLimit)
 		},
 	}
 
 	// Define cobra flags, the default value has the lowest (least significant) precedence
 	rootCmd.Flags().StringVarP(&environment, "env", "e", "prd", "Environment")
 	rootCmd.Flags().StringVarP(&defaultConfigFilename, "config", "c", "config/configuration", "Configuration file")
+
 	rootCmd.Flags().StringVar(&hostname, "hostname", "localhost", "Hostname")
 	rootCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port")
+	rootCmd.Flags().StringVar(&certFile, "cert", "cert/server.pem", "Certiticate file for TLS server")
+	rootCmd.Flags().StringVar(&keyFile, "key", "cert/server.key", "Key file for TLS server")
+
+	rootCmd.Flags().Int64VarP(&compressedImageSizeLimit, "image-size-limit", "l", 1_000_000_000, "Compressed image size limit")
 
 	return rootCmd
 }
