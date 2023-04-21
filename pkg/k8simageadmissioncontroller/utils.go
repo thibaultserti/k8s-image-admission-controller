@@ -2,59 +2,94 @@ package k8simageadmissioncontroller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/regclient/regclient"
+	"github.com/regclient/regclient/types/manifest"
+	"github.com/regclient/regclient/types/platform"
+	"github.com/regclient/regclient/types/ref"
 	logging "github.com/sirupsen/logrus"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 )
 
-func PullDockerImage(imageName string) error {
+type Layer struct {
+	MediaType string `json:"mediaType"`
+	Size      int    `json:"size"`
+	Digest    string `json:"digest"`
+}
+
+func GetManifest(imageName string) (map[string]interface{}, error) {
+	var plat platform.Platform
+	var manifestMap map[string]interface{}
+
 	ctx := context.Background()
-
-	// Créer un client Docker
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	rc := regclient.New()
+	ref, err := ref.New(imageName)
 	if err != nil {
-		logging.Error("Échec de la création du client Docker")
+		logging.Errorf("Error %v :", err)
+		return nil, err
 	}
 
-	// Préparer les options de pull
-	options := types.ImagePullOptions{}
-	resp, err := cli.ImagePull(ctx, imageName, options)
+	m, err := rc.ManifestGet(ctx, ref)
 	if err != nil {
-		logging.Error("échec du tirage de l'image Docker")
-	}
-	defer resp.Close()
-
-	// Lire la sortie du tirage de l'image Docker
-	output := make([]byte, 4096)
-	for {
-		n, err := resp.Read(output)
-		if err != nil {
-			break
-		}
-		fmt.Print(string(output[:n]))
+		logging.Errorf("Cannot list all manifests %v :", err)
+		return nil, err
 	}
 
-	return nil
+	plat, err = platform.Parse("linux/amd64")
+	if err != nil {
+		logging.Errorf("Cannot parse platform %v :", err)
+		return nil, err
+	}
+
+	desc, err := manifest.GetPlatformDesc(m, &plat)
+	if err != nil {
+		logging.Errorf("Cannot retrieve manifest platform %v :", err)
+		return nil, err
+	}
+
+	manifest, err := rc.ManifestGet(ctx, ref, regclient.WithManifestDesc(*desc))
+	if err != nil {
+		logging.Errorf("Cannot retrieve manifest %v :", err)
+		return nil, err
+	}
+
+	r, err := manifest.MarshalJSON()
+	if err != nil {
+		logging.Errorf("Cannot marshall manifest %v :", err)
+		return nil, err
+
+	}
+
+	err = json.Unmarshal(r, &manifestMap)
+	if err != nil {
+		logging.Errorf("Cannot unmarshal manifest %v :", err)
+		return nil, err
+	}
+
+	return manifestMap, nil
+
 }
 
 func GetImageSize(imageName string) (int64, error) {
-	// Créer un client Docker
-	cli, err := client.NewClientWithOpts(client.WithVersion("1.41"))
+	sizeTotal := 0
+	manifestMap, err := GetManifest(imageName)
 	if err != nil {
-		return 0, err
+		logging.Errorf("Cannot retrieve manifest platform %v :", err)
 	}
 
-	// Récupérer les informations de l'image
-	imageInspect, _, err := cli.ImageInspectWithRaw(context.Background(), imageName)
-	if err != nil {
-		return 0, err
+	if layers, ok := manifestMap["layers"].([]interface{}); ok {
+		jsonString, _ := json.Marshal(layers)
+		s := []Layer{}
+		err := json.Unmarshal(jsonString, &s)
+		if err != nil {
+			logging.Errorf("Cannot unmarshal layers %v :", err)
+		}
+		fmt.Println(s)
+		for _, layer := range s {
+			sizeTotal += layer.Size
+		}
+
 	}
-
-	// Récupérer la taille de l'image à partir des informations de l'image
-	size := int64(imageInspect.Size)
-
-	return size, nil
+	return int64(sizeTotal), nil
 }

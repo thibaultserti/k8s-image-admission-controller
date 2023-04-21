@@ -1,15 +1,15 @@
 kind: ValidatingWebhookConfiguration
 apiVersion: admissionregistration.k8s.io/v1
 metadata:
-  name: pod-label-require
+  name: image-validating-webhook
   annotations:
-    cert-manager.io/inject-ca-from: default/client
+    cert-manager.io/inject-ca-from: kube-image-admission-webhook/client
 webhooks:
-  - name: image-validating-webhook
+  - name: image-admission.tayanides.com
     clientConfig:
       service:
-        namespace: kube-image-admission-webhook
         name: image-validating-webhook
+        namespace: kube-image-admission-webhook
         path: /validate
     rules:
       - apiGroups: [""]

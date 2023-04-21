@@ -1,7 +1,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: image-validating-webhoo
+  name: image-validating-webhook
   namespace: kube-image-admission-webhook
 spec:
   replicas: 1
@@ -17,11 +17,17 @@ spec:
         - name: image-validating-webhook
           image: ghcr.io/thibaultserti/k8s-image-admission-controller:latest
           imagePullPolicy: Always
+          args:
+            - "--cert=/cert/opt/tls.crt"
+            - "--key=/cert/opt/tls.key"
+            - "--hostname=0.0.0.0"
+            - "--image-size-limit=1000000"
+            - "--port=8080"
           ports:
-            - containerPort: 443
+            - containerPort: 8080
           volumeMounts:
             - name: cert
-              mountPath: /etc/opt
+              mountPath: /cert/opt
               readOnly: true
       volumes:
         - name: cert

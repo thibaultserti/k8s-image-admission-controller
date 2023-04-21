@@ -33,8 +33,9 @@ func admissionReviewFromRequest(r *http.Request, deserializer runtime.Decoder) (
 			return nil, err
 		}
 		body = requestData
+	} else {
+		logging.Errorf("No body found in AdmissionReview!")
 	}
-
 	// Decode the request body into
 	admissionReviewRequest := &admissionv1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, admissionReviewRequest); err != nil {
@@ -52,9 +53,12 @@ func ValidatePod(w http.ResponseWriter, r *http.Request, compressedImageSize int
 	admissionReviewRequest, err := admissionReviewFromRequest(r, deserializer)
 	if err != nil {
 		msg := fmt.Sprintf("Error getting admission review from request: %v", err)
-		logging.Info(msg)
+		logging.Errorf(msg)
 		w.WriteHeader(400)
-		w.Write([]byte(msg))
+		_, err := w.Write([]byte(msg))
+		if err != nil {
+			logging.Errorf("Error when writing bytes to response: %v", err)
+		}
 		return
 	}
 
@@ -66,7 +70,10 @@ func ValidatePod(w http.ResponseWriter, r *http.Request, compressedImageSize int
 		msg := fmt.Sprintf("Did not receive pod, got %s", admissionReviewRequest.Request.Resource.Resource)
 		logging.Info(msg)
 		w.WriteHeader(400)
-		w.Write([]byte(msg))
+		_, err := w.Write([]byte(msg))
+		if err != nil {
+			logging.Errorf("Error when writing bytes to response: %v", err)
+		}
 		return
 	}
 
@@ -75,9 +82,12 @@ func ValidatePod(w http.ResponseWriter, r *http.Request, compressedImageSize int
 	pod := corev1.Pod{}
 	if _, _, err := deserializer.Decode(rawRequest, nil, &pod); err != nil {
 		msg := fmt.Sprintf("Error decoding raw pod: %v", err)
-		logging.Printf(msg)
+		logging.Error(msg)
 		w.WriteHeader(500)
-		w.Write([]byte(msg))
+		_, err := w.Write([]byte(msg))
+		if err != nil {
+			logging.Errorf("Error when writing bytes to response: %v", err)
+		}
 		return
 	}
 
@@ -89,19 +99,17 @@ func ValidatePod(w http.ResponseWriter, r *http.Request, compressedImageSize int
 
 	containers := pod.Spec.Containers
 	for _, container := range containers {
-		err := PullDockerImage(container.Image)
-		if err != nil {
-			logging.Error("Cannot pull image")
-		}
 		size, err := GetImageSize(container.Image)
 		if err != nil {
 			logging.Error("Cannot get image size")
 		}
 		if size > compressedImageSize {
+			msg := "Container image is too big"
 			admissionResponse.Allowed = false
 			admissionResponse.Result = &metav1.Status{
-				Message: "Container image is too big",
+				Message: msg,
 			}
+			logging.Errorf(msg)
 			break
 		}
 	}
@@ -117,11 +125,19 @@ func ValidatePod(w http.ResponseWriter, r *http.Request, compressedImageSize int
 		msg := fmt.Sprintf("error marshalling response json: %v", err)
 		logging.Info(msg)
 		w.WriteHeader(500)
-		w.Write([]byte(msg))
+		_, err := w.Write([]byte(msg))
+		if err != nil {
+			logging.Errorf("Error when writing bytes to response: %v", err)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	w.WriteHeader(200)
+
+	_, err = w.Write(resp)
+	if err != nil {
+		logging.Errorf("Error when writing bytes to response: %v", err)
+	}
 
 }

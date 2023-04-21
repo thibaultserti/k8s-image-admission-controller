@@ -1,5 +1,5 @@
 BINARY_NAME=k8s-image-admission-controller
-IMAGE_NAME=$(BINARY_NAME)-golang
+IMAGE_NAME=$(BINARY_NAME)
 PORT=8080
 
 DEBUG ?=
@@ -67,7 +67,7 @@ check: check-go check-golangci-lint check-goreleaser check-docker ## Check utils
 
 .PHONY: Docker
 docker: ## Docker
-	@docker build . -t $(IMAGE_NAME):latest
+	@docker build . -t ghcr.io/thibaultserti/$(IMAGE_NAME):latest
 
 .PHONY: Docker debug
 docker-debug: Docker debug
@@ -75,11 +75,15 @@ docker-debug: Docker debug
 
 .PHONY: Docker run
 docker-run: ## Docker run
-	@docker run -it --rm -p $(PORT):$(PORT) $(IMAGE_NAME):latest
+	@docker run -it --rm -p $(PORT):$(PORT) ghcr.io/thibaultserti/$(IMAGE_NAME):latest
 
 .PHONY: Docker debug run
 docker-debug-run: ## Docker debug run
 	@docker run -it --rm -p $(PORT):$(PORT) $(IMAGE_NAME)-debug:latest
+
+.PHONY: Docker push
+docker-push: ## Docker debug run
+	@docker push ghcr.io/thibaultserti/$(IMAGE_NAME):latest
 
 ##@ Go
 

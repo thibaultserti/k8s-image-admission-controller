@@ -1,6 +1,4 @@
-# Bootstrap golang project
-
-See https://github.com/golang-standards/project-layout for project structure
+# K8S Image Admission controler
 ## Badges
 
 [![Build Status](https://github.com/thibaultserti/k8s-image-admission-controller/actions/workflows/release.yaml/badge.svg)](https://github.com/thibaultserti/k8s-image-admission-controller/actions/workflows/release.yaml)
@@ -12,24 +10,36 @@ See https://github.com/golang-standards/project-layout for project structure
 [![codecov](https://codecov.io/gh/thibaultserti/k8s-image-admission-controller/branch/main/graph/badge.svg?token=5BO47LR632)](https://codecov.io/gh/thibaultserti/k8s-image-admission-controller)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thibaultserti/test-saas-ci)](https://goreportcard.com/report/github.com/thibaultserti/k8s-image-admission-controller)
 
-## Use this template
+## Test
 
-Change repo name in `.releaserc`
+### Local
 
-Run following commands to init repo:
+
+### In a K8S cluster
+
+Create k3d cluster
 
 ```bash
-go mod init $REPO_URL
+k3d cluster create k8s-image-admission-test
 ```
 
-To add a dependencies used in code (and remove unused):
 
-```bash
-go mod tidy
+Install cert-manager
+```
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.yaml
 ```
 
-To download dependencies:
-
+Install resources
 ```bash
-go mod vendor
+kubectl apply -f k8s/00_namespace.yaml
+kubectl apply -f k8s/10_ca_certificate.yaml
+kubectl apply -f k8s/10_certificate.yaml
+kubectl apply -f k8s/20_deployment.yaml
+kubectl apply -f k8s/20_service.yaml
+kubectl apply -f k8s/30_validatingwebhookconfiguration.yaml
+```
+
+Test that pod is denied
+```bash
+kubectl apply -f k8s/90_pod-test.yaml
 ```
