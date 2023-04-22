@@ -24,3 +24,4 @@ jobs:
       release: latest
       use-prebuilt-image: true
       enable-signing: true
+      platforms: "linux/amd64"

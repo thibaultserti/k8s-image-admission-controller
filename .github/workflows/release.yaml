@@ -31,3 +31,4 @@ jobs:
       release: ${{ needs.go-release.outputs.new_release_version}}
       use-prebuilt-image: true
       enable-signing: true
+      platforms: "linux/amd64"
